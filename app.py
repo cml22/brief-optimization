@@ -38,7 +38,8 @@ def create_word_file(jira_link, content):
     filename = f"Brief SEO Optimization - TT-{ticket_number}.docx"
 
     doc = Document()
-    doc.add_heading(f'Brief SEO Optimization - TT-{ticket_number}', 0)
+    
+    # Remove the heading addition here (as requested)
 
     # Add extracted content to the Word file with formatting
     for element in content:
@@ -65,8 +66,9 @@ if st.button("Generate Word File"):
             # Create the Word file
             filename = create_word_file(jira_link, content)
             with open(filename, "rb") as file:
-                btn = st.download_button(
-                    label="Download the file",
+                # Automatically trigger the download
+                st.download_button(
+                    label="Your file is ready! Click to download",
                     data=file,
                     file_name=filename
                 )
