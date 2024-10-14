@@ -41,24 +41,4 @@ def create_word_file(content, jira_link):
     return output, title
 
 # Configuration de l'application Streamlit
-st.title("Extracteur de contenu HTML pour WordPress")
-
-# Formulaire d'entrée
-url = st.text_input("Insérer l'URL de la page:")
-jira_link = st.text_input("Ajouter le lien JIRA:")
-
-if st.button("Extraire et créer le fichier Word"):
-    if url and jira_link:
-        content = extract_content(url)
-        if content:
-            word_file, title = create_word_file(content, jira_link)
-            if word_file:
-                st.success(f"Fichier Word créé: {title}.docx")
-                st.download_button(
-                    label="Télécharger le fichier",
-                    data=word_file,
-                    file_name=f"{title}.docx",
-                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                )
-    else:
-        st.warning("Veuillez remplir tous les champs.")
+st.title("Extracteur de contenu HTML 
