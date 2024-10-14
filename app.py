@@ -1,6 +1,7 @@
 import requests
 from bs4 import BeautifulSoup
 from docx import Document
+from docx.shared import Inches
 import streamlit as st
 import html
 
@@ -24,16 +25,16 @@ def extract_content_from_url(url):
                 if element.name in ['h1', 'h2', 'h3', 'h4', 'h5', 'h6']:
                     content.append({'type': 'heading', 'level': element.name, 'text': text})
                 elif element.name == 'p':
-                    paragraph = ""
+                    paragraph = []
                     for sub_element in element:
                         if sub_element.name == 'a' and sub_element.get('href'):
-                            # Create hyperlink text in the format: 'Text (URL)'
+                            # Create hyperlink with clickable text
                             anchor_text = sub_element.get_text()
                             url = sub_element.get("href")
-                            paragraph += f'{anchor_text} ({url}) '  # Include link as text
+                            paragraph.append((anchor_text, url))  # Store as a tuple of (text, link)
                         else:
-                            paragraph += sub_element.string if sub_element.string else ''
-                    content.append({'type': 'paragraph', 'text': paragraph.strip()})
+                            paragraph.append((sub_element.string, None))  # Store as a tuple (text, None)
+                    content.append({'type': 'paragraph', 'text': paragraph})
 
     return content, h1_text  # Return the H1 text as well
 
@@ -50,8 +51,13 @@ def create_word_file(file_name, content, url):
             level = int(element['level'][1])  # Heading level (h1 = 1, h2 = 2, etc.)
             doc.add_heading(element['text'], level=level)
         elif element['type'] == 'paragraph':
-            # Add paragraph text, replacing the hyperlink as anchor text
-            doc.add_paragraph(element['text'])
+            # Add paragraph text, making links clickable
+            paragraph = doc.add_paragraph()  # Create a new paragraph
+            for text, link in element['text']:
+                if link:  # If there's a link, make it a hyperlink
+                    paragraph.add_run(text).hyperlink = link
+                else:  # Just regular text
+                    paragraph.add_run(text)
 
     # Save the Word file
     doc.save(file_name)
