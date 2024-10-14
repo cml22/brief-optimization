@@ -12,15 +12,10 @@ def extract_content_from_url(url):
 
     content = []
     start = False
-    # Ignorer la div spécifique contenant le texte à retirer
-    for element in soup.find_all(['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'div']):
+    for element in soup.find_all(['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p']):
         if element.name == 'h1':
             start = True
         if start:
-            # Vérifie si l'élément est la div à ignorer
-            if element.name == 'div' and 'container text-center text-level--sm pb-4' in element['class']:
-                continue
-            
             text = element.get_text().strip()
             text = html.unescape(text)  # Convertit les entités HTML en caractères normaux
             if text:
