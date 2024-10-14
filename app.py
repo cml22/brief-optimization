@@ -6,12 +6,25 @@ import re
 import io
 
 def extract_content(url):
-    """Extrait le contenu HTML d'une page web."""
+    """Extrait le contenu HTML d'une page web et les titres."""
     try:
         response = requests.get(url)
         response.raise_for_status()
         soup = BeautifulSoup(response.text, 'html.parser')
-        content = soup.body.get_text(separator='\n')
+
+        content = []
+        
+        # Extraire les titres et le contenu
+        for element in soup.body.find_all(['h1', 'h2', 'h3', 'p']):
+            if element.name == 'h1':
+                content.append((element.get_text(), 1))  # Titre de niveau 1
+            elif element.name == 'h2':
+                content.append((element.get_text(), 2))  # Titre de niveau 2
+            elif element.name == 'h3':
+                content.append((element.get_text(), 3))  # Titre de niveau 3
+            elif element.name == 'p':
+                content.append((element.get_text(), 4))  # Paragraphe
+
         return content
     except requests.RequestException as e:
         st.error(f"Erreur lors de la récupération de l'URL: {e}")
@@ -28,7 +41,17 @@ def create_word_file(content, jira_link):
 
     doc = Document()
     doc.add_heading(title, level=1)
-    doc.add_paragraph(content)
+
+    # Ajouter le contenu au document Word
+    for text, level in content:
+        if level == 1:
+            doc.add_heading(text, level=1)
+        elif level == 2:
+            doc.add_heading(text, level=2)
+        elif level == 3:
+            doc.add_heading(text, level=3)
+        elif level == 4:
+            doc.add_paragraph(text)
 
     output = io.BytesIO()
     doc.save(output)
