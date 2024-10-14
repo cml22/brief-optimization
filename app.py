@@ -8,7 +8,8 @@ import io
 def extract_content(url):
     """Extrait le contenu HTML d'une page web et les titres."""
     try:
-        response = requests.get(url)
+        # Limite le temps d'attente à 10 secondes
+        response = requests.get(url, timeout=10)
         response.raise_for_status()
         soup = BeautifulSoup(response.text, 'html.parser')
 
@@ -66,16 +67,17 @@ jira_link = st.text_input("Ajouter le lien JIRA:")
 
 if st.button("Extraire et créer le fichier Word"):
     if url and jira_link:
-        content = extract_content(url)
-        if content:
-            word_file, title = create_word_file(content, jira_link)
-            if word_file:
-                st.success(f"Fichier Word créé: {title}.docx")
-                st.download_button(
-                    label="Télécharger le fichier",
-                    data=word_file,
-                    file_name=f"{title}.docx",  # Correction ici : 'file_name'
-                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                )
+        with st.spinner("Extraction en cours..."):
+            content = extract_content(url)
+            if content:
+                word_file, title = create_word_file(content, jira_link)
+                if word_file:
+                    st.success(f"Fichier Word créé: {title}.docx")
+                    st.download_button(
+                        label="Télécharger le fichier",
+                        data=word_file,
+                        file_name=f"{title}.docx",  # Correction ici : 'file_name'
+                        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                    )
     else:
         st.warning("Veuillez remplir tous les champs.")
