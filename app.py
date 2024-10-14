@@ -27,7 +27,7 @@ def create_word_file(content, jira_link):
         title = f"Brief SEO Optimization - TT-{jira_number.group(1)}"
     else:
         st.error("Le lien JIRA doit contenir le format 'TT-XXXX'.")
-        return None
+        return None, None
 
     # Créer un document Word dans un objet BytesIO
     doc = Document()
@@ -54,6 +54,11 @@ if st.button("Extraire et créer le fichier Word"):
             word_file, title = create_word_file(content, jira_link)
             if word_file:
                 st.success(f"Fichier Word créé: {title}.docx")
-                st.download_button("Télécharger le fichier", data=word_file, file_name=f"{title}.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+                st.download_button(
+                    label="Télécharger le fichier",
+                    data=word_file,
+                    file_name=f"{title}.docx",
+                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                )
     else:
         st.warning("Veuillez remplir tous les champs.")
