@@ -4,7 +4,7 @@ from docx import Document
 import streamlit as st
 import html
 
-# Fonction pour extraire le contenu à partir de <h1> jusqu'aux balises <h6>, <p> et les liens <a>
+# Function to extract content from <h1> to <h6>, <p> tags and <a> links
 def extract_content_from_url(url):
     response = requests.get(url)
     response.encoding = 'utf-8'
@@ -17,7 +17,7 @@ def extract_content_from_url(url):
             start = True
         if start:
             text = element.get_text().strip()
-            text = html.unescape(text)  # Convertit les entités HTML en caractères normaux
+            text = html.unescape(text)  # Converts HTML entities into normal characters
             if text:
                 if element.name in ['h1', 'h2', 'h3', 'h4', 'h5', 'h6']:
                     content.append({'type': 'heading', 'level': element.name, 'text': text})
@@ -32,7 +32,7 @@ def extract_content_from_url(url):
 
     return content
 
-# Fonction pour créer un document Word à partir du contenu extrait
+# Function to create a Word document from the extracted content
 def create_word_file(jira_link, content):
     ticket_number = jira_link[-4:]
     filename = f"Brief SEO Optimization - TT-{ticket_number}.docx"
@@ -40,37 +40,37 @@ def create_word_file(jira_link, content):
     doc = Document()
     doc.add_heading(f'Brief SEO Optimization - TT-{ticket_number}', 0)
 
-    # Ajouter le contenu extrait dans le fichier Word avec formatage
+    # Add extracted content to the Word file with formatting
     for element in content:
         if element['type'] == 'heading':
-            level = int(element['level'][1])  # Niveau de heading (h1 = 1, h2 = 2, etc.)
+            level = int(element['level'][1])  # Heading level (h1 = 1, h2 = 2, etc.)
             doc.add_heading(element['text'], level=level)
         elif element['type'] == 'paragraph':
             doc.add_paragraph(element['text'])
 
-    # Sauvegarder le fichier Word
+    # Save the Word file
     doc.save(filename)
     return filename
 
-# Interface Streamlit
-st.title("Extracteur de contenu HTML vers Word")
-url = st.text_input("Insérer l'URL de la page")
-jira_link = st.text_input("Ajouter le lien JIRA")
+# Streamlit interface
+st.title("HTML Content Extractor to Word")
+url = st.text_input("Enter the page URL")
+jira_link = st.text_input("Add the JIRA link (TT - Traffic Team)")
 
-if st.button("Générer le fichier Word"):
+if st.button("Generate Word File"):
     if url and jira_link:
-        # Extraire le contenu à partir de l'URL
+        # Extract content from the URL
         content = extract_content_from_url(url)
         if content:
-            # Créer le fichier Word
+            # Create the Word file
             filename = create_word_file(jira_link, content)
             with open(filename, "rb") as file:
                 btn = st.download_button(
-                    label="Télécharger le fichier",
+                    label="Download the file",
                     data=file,
                     file_name=filename
                 )
         else:
-            st.error("Impossible d'extraire le contenu de cette URL.")
+            st.error("Unable to extract content from this URL.")
     else:
-        st.error("Veuillez remplir tous les champs.")
+        st.error("Please fill out all fields.")
