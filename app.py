@@ -1,7 +1,6 @@
 import requests
 from bs4 import BeautifulSoup
 from docx import Document
-from docx.shared import Inches
 import streamlit as st
 import html
 
@@ -55,9 +54,10 @@ def create_word_file(file_name, content, url):
             paragraph = doc.add_paragraph()  # Create a new paragraph
             for text, link in element['text']:
                 if link:  # If there's a link, make it a hyperlink
-                    paragraph.add_run(text).hyperlink = link
+                    run = paragraph.add_run(text)
+                    run.hyperlink = link  # Create a hyperlink
                 else:  # Just regular text
-                    paragraph.add_run(text)
+                    paragraph.add_run(text if text else '')  # Add only text if it exists
 
     # Save the Word file
     doc.save(file_name)
