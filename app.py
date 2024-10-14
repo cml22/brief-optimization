@@ -1,8 +1,18 @@
 import requests
 from bs4 import BeautifulSoup
 from docx import Document
+from docx.shared import Pt
+from docx.oxml import parse_xml
+from docx.oxml.ns import nsdecls
 import streamlit as st
 import html
+
+# Function to create a hyperlink in a Word document
+def add_hyperlink(paragraph, text, url):
+    # Create a hyperlink in the document
+    r_id = paragraph.part.relate_to(url, "hyperlink", is_external=True)
+    hyperlink = f'<w:hyperlink r:id="{r_id}" xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:r><w:rPr><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t>{text}</w:t></w:r></w:hyperlink>'
+    paragraph._element.append(parse_xml(hyperlink))
 
 # Function to extract content from <h1> to <h6>, <p> tags and <a> links
 def extract_content_from_url(url):
@@ -27,7 +37,7 @@ def extract_content_from_url(url):
                     paragraph = []
                     for sub_element in element:
                         if sub_element.name == 'a' and sub_element.get('href'):
-                            # Create hyperlink with clickable text
+                            # Store as a tuple of (text, link)
                             anchor_text = sub_element.get_text()
                             url = sub_element.get("href")
                             paragraph.append((anchor_text, url))  # Store as a tuple of (text, link)
@@ -54,8 +64,7 @@ def create_word_file(file_name, content, url):
             paragraph = doc.add_paragraph()  # Create a new paragraph
             for text, link in element['text']:
                 if link:  # If there's a link, make it a hyperlink
-                    run = paragraph.add_run(text)
-                    run.hyperlink = link  # Create a hyperlink
+                    add_hyperlink(paragraph, text, link)  # Create a hyperlink
                 else:  # Just regular text
                     paragraph.add_run(text if text else '')  # Add only text if it exists
 
