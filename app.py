@@ -2,6 +2,7 @@ import requests
 from bs4 import BeautifulSoup
 from docx import Document
 from docx.shared import RGBColor  # Import RGBColor ici
+from docx.oxml import OxmlElement  # Import OxmlElement ici
 import streamlit as st
 import html
 
@@ -44,7 +45,8 @@ def add_hyperlink(paragraph, url, text):
     run = paragraph.add_run(text)
     run.font.color.rgb = RGBColor(0, 0, 255)  # Set hyperlink color to blue
     run.font.underline = True  # Underline the text to indicate it's a hyperlink
-    # Set the hyperlink URL
+
+    # Create hyperlink element
     hyperlink = OxmlElement('w:hyperlink')
     hyperlink.set('{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id', url)
     hyperlink.append(run._element)
