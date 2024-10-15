@@ -1,62 +1,84 @@
 import streamlit as st
+from bs4 import BeautifulSoup
+import requests
 from docx import Document
-from docx.oxml import parse_xml
-from docx.oxml.ns import nsdecls
+from docx.oxml.shared import OxmlElement
+from docx.oxml.ns import qn
 
 def add_hyperlink(paragraph, url, text):
-    """Ajoute un lien hypertexte à un paragraphe."""
-    part = paragraph.part
-    r_id = part.relate_to(url, docx.opc.constants.RELATIONSHIP_TYPE.HYPERLINK, is_external=True)
+    """
+    Ajoute un hyperlien à un paragraphe dans un document Word.
+    """
+    r_id = paragraph.part.relate_to(url, docx.opc.constants.RELATIONSHIP_TYPE.HYPERLINK, is_external=True)
+    
+    hyperlink = OxmlElement('w:hyperlink')
+    hyperlink.set(qn('r:id'), r_id)
 
-    # Créer un élément XML pour le lien hypertexte
-    hyperlink = parse_xml(r'<w:hyperlink {}>'.format(nsdecls('w')))
-    hyperlink.set('r:id', r_id)
+    new_run = OxmlElement('w:r')
+    run_properties = OxmlElement('w:rPr')
 
-    # Créer un run pour le texte du lien
-    run = paragraph.add_run(text)
-    run.font.color.rgb = (0, 0, 255)  # Couleur bleue
-    run.font.underline = True  # Souligner pour indiquer un lien
+    underline = OxmlElement('w:u')
+    underline.set(qn('w:val'), 'single')
+    run_properties.append(underline)
 
-    # Ajouter le run à l'élément hyperlink
+    color = OxmlElement('w:color')
+    color.set(qn('w:val'), '0000FF')  # Blue color for links
+    run_properties.append(color)
+
+    new_run.append(run_properties)
+    text_element = OxmlElement('w:t')
+    text_element.text = text
+    new_run.append(text_element)
+
+    hyperlink.append(new_run)
     paragraph._element.append(hyperlink)
 
-def create_word_file(filename, content):
-    """Crée un fichier Word avec le contenu spécifié."""
+def create_word_file_from_url(filename, url):
+    """
+    Récupère le contenu d'une URL, extrait les titres et les liens, puis génère un fichier Word formaté.
+    """
+    # Envoyer une requête HTTP pour récupérer la page
+    response = requests.get(url)
+    soup = BeautifulSoup(response.content, 'html.parser')
+
     document = Document()
-
-    for part in content:
-        paragraph = document.add_paragraph()
-        text = part[0]
-        url = part[1]
-
-        # Gestion des liens hypertexte uniquement s'il y a un texte et une URL
-        if url and text:
-            add_hyperlink(paragraph, url, text)
-        else:
-            paragraph.add_run(text)  # Ajouter le texte sans lien si pas d'URL
-
+    
+    # Récupérer le titre principal (H1) et ajouter dans le document
+    h1 = soup.find('h1')
+    if h1:
+        document.add_heading(f"TT={h1.get_text().strip()}", level=1)
+    
+    # Récupérer les autres titres (H2, H3, ...) et les paragraphes
+    for tag in soup.find_all(['h2', 'h3', 'h4', 'p', 'a']):
+        if tag.name == 'h2':
+            document.add_heading(f"TT={tag.get_text().strip()}", level=2)
+        elif tag.name == 'h3':
+            document.add_heading(f"TT={tag.get_text().strip()}", level=3)
+        elif tag.name == 'h4':
+            document.add_heading(f"TT={tag.get_text().strip()}", level=4)
+        elif tag.name == 'p':
+            paragraph = document.add_paragraph(tag.get_text().strip())
+            # Rechercher les liens dans le paragraphe
+            for link in tag.find_all('a'):
+                add_hyperlink(paragraph, link['href'], link.get_text())
+    
+    # Sauvegarder le fichier Word
     document.save(filename)
 
-# Interface Streamlit
-st.title("Générateur de document Word avec liens hypertextes")
+# Interface utilisateur avec Streamlit
+st.title("Générateur de document Word à partir d'une URL")
+
+# Entrée pour l'URL
+url = st.text_input("Entrez l'URL de la page web :")
 
 # Entrée pour le nom du fichier
 filename = st.text_input("Nom du fichier Word (sans extension) :")
 filename = filename + ".docx" if filename else ""
 
-# Entrée pour le contenu
-content = []
-num_entries = st.number_input("Nombre d'entrées de texte :", min_value=1, value=1)
-
-for i in range(num_entries):
-    text = st.text_input(f"Texte {i + 1} :")
-    url = st.text_input(f"URL {i + 1} :")
-    content.append((text, url))
-
-# Bouton pour générer le document
+# Bouton pour créer le document
 if st.button("Créer le document"):
-    if filename and content:
-        create_word_file(filename, content)
-        st.success(f"Document '{filename}' créé avec succès !")
+    if url and filename:
+        create_word_file_from_url(filename, url)
+        st.success(f"Document '{filename}' créé avec succès à partir de l'URL : {url}")
     else:
-        st.error("Veuillez fournir un nom de fichier et au moins une entrée de texte.")
+        st.error("Veuillez fournir une URL et un nom de fichier valide.")
