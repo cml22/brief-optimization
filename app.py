@@ -3,8 +3,9 @@ import requests
 from bs4 import BeautifulSoup
 from docx import Document
 from docx.shared import RGBColor
+import os
 
-def create_word_file(filename, content):
+def create_word_file(filename, content, jira_link):
     document = Document()
     document.add_heading('Contenu extrait', level=1)
 
@@ -12,6 +13,12 @@ def create_word_file(filename, content):
     for part in content:
         paragraph = document.add_paragraph()
         add_hyperlink(paragraph, part['url'], part['text'])
+
+    # Ajouter le lien JIRA à la fin du document
+    if jira_link:
+        document.add_paragraph('Lien JIRA :')
+        paragraph = document.add_paragraph()
+        add_hyperlink(paragraph, jira_link, jira_link)
 
     # Enregistrement du document
     document.save(filename)
@@ -50,8 +57,15 @@ if st.button('Créer le fichier Word'):
         content = extract_content(url_input)
         if content:  # Vérifie que du contenu a été extrait
             filename = 'extracted_content.docx'
-            create_word_file(filename, content)
+            create_word_file(filename, content, jira_input)
             st.success(f'Fichier Word créé : {filename}')
+            
+            # Offrir le fichier à télécharger
+            with open(filename, 'rb') as f:
+                st.download_button('Télécharger le fichier Word', f, file_name=filename)
+
+            # Supprimer le fichier local après l'avoir téléchargé
+            os.remove(filename)
         else:
             st.error('Aucun lien trouvé sur la page.')
     else:
