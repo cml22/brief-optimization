@@ -52,15 +52,16 @@ def create_word_file(file_name, content, url):
             doc.add_heading(element['text'], level=level)
         elif element['type'] == 'paragraph':
             paragraph = doc.add_paragraph()
-            for sub_element in element['text'].split(' '):
-                # Check if the part is a hyperlink (contains " (")
-                if '(' in sub_element and sub_element.endswith(')'):
-                    # Extract the text and URL
-                    anchor_text = sub_element[:sub_element.index(' (')]
-                    url = sub_element[sub_element.index('(') + 1:-1]  # Extract URL
-                    add_hyperlink(paragraph, anchor_text, url)  # Add hyperlink
+            parts = element['text'].split(' ')
+            for part in parts:
+                if '(' in part and part.endswith(')'):
+                    # Extract anchor text and URL
+                    anchor_text = part[:part.index(' (')]
+                    url = part[part.index('(') + 1:-1]  # Extract URL
+                    # Add hyperlink to the document
+                    add_hyperlink(paragraph, anchor_text, url)
                 else:
-                    paragraph.add_run(sub_element + ' ')
+                    paragraph.add_run(part + ' ')  # Add normal text
 
     # Save the Word file
     doc.save(file_name)
@@ -68,13 +69,13 @@ def create_word_file(file_name, content, url):
 
 # Function to add a hyperlink to a paragraph
 def add_hyperlink(paragraph, text, url):
-    # This method will create a hyperlink in the Word document
-    # Create a hyperlink
+    # Create a hyperlink in the Word document
+    r_id = paragraph.part.relate_to(url, docx.oxml.ns.nsdecls('r'))
     hyperlink = OxmlElement('w:hyperlink')
-    hyperlink.set('r:id', 'rId1', )
+    hyperlink.set('r:id', r_id, )
     hyperlink.set('w:history', '1')
 
-    # Add the text to the hyperlink
+    # Create a run for the hyperlink text
     run = OxmlElement('w:r')
     text_element = OxmlElement('w:t')
     text_element.text = text
