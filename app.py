@@ -1,7 +1,7 @@
 import requests
 from bs4 import BeautifulSoup
 from docx import Document
-from docx.shared import RGBColor
+from docx.oxml import OxmlElement
 import streamlit as st
 import html
 
@@ -16,7 +16,7 @@ def extract_content_from_url(url):
     start = False
     for element in soup.find_all(['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p']):
         if element.name == 'h1':
-            h1_text = element.get_text().strip()
+            h1_text = element.get_text().strip()  # Capture the H1 text
             start = True
         if start:
             text = element.get_text().strip()
@@ -25,38 +25,23 @@ def extract_content_from_url(url):
                 if element.name in ['h1', 'h2', 'h3', 'h4', 'h5', 'h6']:
                     content.append({'type': 'heading', 'level': element.name, 'text': text})
                 elif element.name == 'p':
-                    paragraph = []
+                    paragraph = ""
                     for sub_element in element:
                         if sub_element.name == 'a' and sub_element.get('href'):
+                            # Create hyperlink text in the format: 'Text (URL)'
                             anchor_text = sub_element.get_text()
-                            link_url = sub_element.get("href")
-                            paragraph.append(('link', anchor_text, link_url))
+                            url = sub_element.get("href")
+                            paragraph += f'{anchor_text} ({url}) '  # Include link as text
                         else:
-                            if sub_element.string:
-                                paragraph.append(('text', sub_element.string))
-                    content.append({'type': 'paragraph', 'content': paragraph})
+                            paragraph += sub_element.string if sub_element.string else ''
+                    content.append({'type': 'paragraph', 'text': paragraph.strip()})
 
-    return content, h1_text
-
-# Function to add a hyperlink to a Word document
-def add_hyperlink(paragraph, url, text):
-    # Create a run for the hyperlink text
-    run = paragraph.add_run(text)
-    
-    # Add hyperlink using the Document's `part` reference
-    r_id = paragraph.part.relate_to(url, "hyperlink", is_external=True)
-    run._element.get_or_add_rPr().append(
-        parse_xml(r'<a:blip r:embed="{}"/>'.format(r_id))
-    )
-
-    # Style the hyperlink
-    run.font.color.rgb = RGBColor(0, 0, 255)  # Set hyperlink color to blue
-    run.font.underline = True  # Underline the hyperlink
+    return content, h1_text  # Return the H1 text as well
 
 # Function to create a Word document from the extracted content
 def create_word_file(file_name, content, url):
     doc = Document()
-
+    
     # Add the URL as the first paragraph
     doc.add_paragraph(f"URL: {url}")
 
@@ -67,16 +52,37 @@ def create_word_file(file_name, content, url):
             doc.add_heading(element['text'], level=level)
         elif element['type'] == 'paragraph':
             paragraph = doc.add_paragraph()
-            for part in element['content']:
-                if part[0] == 'text':
-                    paragraph.add_run(part[1])
-                elif part[0] == 'link':
-                    # Add hyperlink
-                    add_hyperlink(paragraph, part[2], part[1])  # Add hyperlink with URL and text
+            for sub_element in element['text'].split(' '):
+                # Check if the part is a hyperlink (contains " (")
+                if '(' in sub_element and sub_element.endswith(')'):
+                    # Extract the text and URL
+                    anchor_text = sub_element[:sub_element.index(' (')]
+                    url = sub_element[sub_element.index('(') + 1:-1]  # Extract URL
+                    add_hyperlink(paragraph, anchor_text, url)  # Add hyperlink
+                else:
+                    paragraph.add_run(sub_element + ' ')
 
     # Save the Word file
     doc.save(file_name)
     return file_name
+
+# Function to add a hyperlink to a paragraph
+def add_hyperlink(paragraph, text, url):
+    # This method will create a hyperlink in the Word document
+    # Create a hyperlink
+    hyperlink = OxmlElement('w:hyperlink')
+    hyperlink.set('r:id', 'rId1', )
+    hyperlink.set('w:history', '1')
+
+    # Add the text to the hyperlink
+    run = OxmlElement('w:r')
+    text_element = OxmlElement('w:t')
+    text_element.text = text
+    run.append(text_element)
+    hyperlink.append(run)
+
+    # Append the hyperlink to the paragraph
+    paragraph._element.append(hyperlink)
 
 # Streamlit interface
 st.title("HTML Content Extractor to Word")
@@ -85,20 +91,27 @@ jira_link = st.text_input("Add the JIRA link (TT - Traffic Team)")
 
 if st.button("Generate Word File"):
     if url:
+        # Extract content from the URL
         content, h1_text = extract_content_from_url(url)
         if content:
+            # Determine the file name based on the JIRA link
             if jira_link:
                 ticket_number = jira_link[-4:]
                 filename = f"Brief SEO Optimization - TT-{ticket_number}.docx"
             else:
-                filename = f"{h1_text}.docx"
+                filename = f"{h1_text}.docx"  # Use H1 text if JIRA link is empty
 
-            create_word_file(filename, content, url)
+            # Create the Word file
+            create_word_file(filename, content, url)  # Pass URL to the function
 
             with open(filename, "rb") as file:
+                # Automatically trigger the download
                 st.download_button(
                     label="Your file is ready! Click to download",
                     data=file,
-                    file_name=filename,
-                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                    file_name=filename
                 )
+        else:
+            st.error("Unable to extract content from this URL.")
+    else:
+        st.error("Please fill out the URL field.")
