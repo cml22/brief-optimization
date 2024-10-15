@@ -72,7 +72,7 @@ def add_hyperlink(paragraph, text, url):
     # Create a hyperlink in the Word document
     r_id = paragraph.part.relate_to(url, docx.oxml.ns.nsdecls('r'))
     hyperlink = OxmlElement('w:hyperlink')
-    hyperlink.set('r:id', r_id, )
+    hyperlink.set('r:id', r_id)
     hyperlink.set('w:history', '1')
 
     # Create a run for the hyperlink text
