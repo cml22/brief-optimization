@@ -3,7 +3,7 @@ import requests
 from bs4 import BeautifulSoup
 from docx import Document
 from docx.shared import RGBColor
-from docx.oxml import parse_xml
+from docx.oxml import OxmlElement
 
 def create_word_file(filename, content):
     document = Document()
@@ -25,7 +25,7 @@ def add_hyperlink(paragraph, url, text):
     run.font.color.rgb = RGBColor(0, 0, 255)  # Set hyperlink color to blue
     run.font.underline = True  # Underline for hyperlink
 
-    # Add the hyperlink relationship
+    # Create the hyperlink relationship
     r_id = paragraph.part.rels.add_relationship(
         'http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink',
         url,
@@ -33,10 +33,13 @@ def add_hyperlink(paragraph, url, text):
         target_mode='External'
     )
 
-    # Set hyperlink properties in the XML
-    hyperlink = parse_xml(r'<w:hyperlink r:id="{}" xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'.format(r_id))
+    # Create the hyperlink XML element
+    hyperlink = OxmlElement('w:hyperlink')
+    hyperlink.set('{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id', r_id)
+    hyperlink.append(run._element)  # Add the run to the hyperlink
+
+    # Append hyperlink to the paragraph
     paragraph._element.append(hyperlink)
-    run._element.get_or_add_rPr().append(parse_xml(r'<w:rStyle w:val="Hyperlink"/>'))
 
 def extract_content(url):
     response = requests.get(url)
