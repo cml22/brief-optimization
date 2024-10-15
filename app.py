@@ -3,8 +3,6 @@ from bs4 import BeautifulSoup
 from docx import Document
 import streamlit as st
 import html
-from docx.shared import RGBColor
-from docx.oxml import OxmlElement
 
 # Function to extract content from <h1> to <h6>, <p> tags and <a> links
 def extract_content_from_url(url):
@@ -41,32 +39,13 @@ def extract_content_from_url(url):
 
 # Function to add a hyperlink to a Word document
 def add_hyperlink(paragraph, url, text):
-    # Create the hyperlink relationship
-    part = paragraph.part
-    r_id = part.relate_to(url, 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink', is_external=True)
-    
-    # Create the hyperlink element
-    hyperlink = OxmlElement('w:hyperlink')
-    hyperlink.set('r:id', r_id)
-    
-    # Create the run element (which contains the actual text)
-    new_run = OxmlElement('w:r')
-    rPr = OxmlElement('w:rPr')
+    # Add the hyperlink as text with an underlying link
+    part = paragraph.add_run(text)
+    part.font.color.rgb = RGBColor(0, 0, 255)  # Set hyperlink color to blue
+    part.underline = True  # Underline to indicate a hyperlink
 
-    # Add hyperlink style (blue color + underline)
-    rStyle = OxmlElement('w:rStyle')
-    rStyle.set('w:val', 'Hyperlink')
-    rPr.append(rStyle)
-    new_run.append(rPr)
-
-    # Set the hyperlink text
-    text_run = OxmlElement('w:t')
-    text_run.text = text
-    new_run.append(text_run)
-    
-    # Append the hyperlink to the paragraph
-    hyperlink.append(new_run)
-    paragraph._element.append(hyperlink)
+    # Use the `hyperlink` feature in docx to make it clickable
+    paragraph.hyperlink = url
 
 # Function to create a Word document from the extracted content
 def create_word_file(file_name, content, url):
