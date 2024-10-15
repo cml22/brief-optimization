@@ -2,8 +2,6 @@ import requests
 from bs4 import BeautifulSoup
 from docx import Document
 from docx.shared import RGBColor
-from docx.oxml import parse_xml
-from docx.oxml.ns import nsdecls
 import streamlit as st
 import html
 
@@ -42,12 +40,14 @@ def extract_content_from_url(url):
 
 # Function to add a hyperlink to a Word document
 def add_hyperlink(paragraph, url, text):
-    # This will create a hyperlink
-    part = paragraph.add_run(text)
+    # Create a run for the hyperlink text
+    run = paragraph.add_run(text)
+    # Add hyperlink using the Document's `part` reference
     r_id = paragraph.part.relate_to(url, "hyperlink", is_external=True)
-    part._element.get_or_add_rPr().append(parse_xml(r'<a:blip r:embed="{}"/>'.format(r_id)))
-    part.font.color.rgb = RGBColor(0, 0, 255)  # Set the hyperlink color to blue
-    part.font.underline = True  # Underline the hyperlink
+    run._element.add_hyperlink(r_id)
+
+    run.font.color.rgb = RGBColor(0, 0, 255)  # Set hyperlink color to blue
+    run.font.underline = True  # Underline the hyperlink
 
 # Function to create a Word document from the extracted content
 def create_word_file(file_name, content, url):
@@ -95,9 +95,6 @@ if st.button("Generate Word File"):
                 st.download_button(
                     label="Your file is ready! Click to download",
                     data=file,
-                    file_name=filename
+                    file_name=filename,
+                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                 )
-        else:
-            st.error("Unable to extract content from this URL.")
-    else:
-        st.error("Please fill out the URL field.")
