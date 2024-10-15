@@ -26,16 +26,16 @@ def extract_content_from_url(url):
                 if element.name in ['h1', 'h2', 'h3', 'h4', 'h5', 'h6']:
                     content.append({'type': 'heading', 'level': element.name, 'text': text})
                 elif element.name == 'p':
-                    paragraph = ""
+                    paragraph = []
                     for sub_element in element:
                         if sub_element.name == 'a' and sub_element.get('href'):
-                            # Create hyperlink text in the format: 'Text (URL)'
+                            # Append link text and URL as a tuple
                             anchor_text = sub_element.get_text()
                             url = sub_element.get("href")
-                            paragraph += f'{anchor_text} ({url}) '  # Include link as text
-                        else:
-                            paragraph += sub_element.string if sub_element.string else ''
-                    content.append({'type': 'paragraph', 'text': paragraph.strip()})
+                            paragraph.append({'text': anchor_text, 'url': url})
+                        elif sub_element.string:
+                            paragraph.append({'text': sub_element.string})
+                    content.append({'type': 'paragraph', 'text': paragraph})
 
     return content, h1_text  # Return the H1 text as well
 
@@ -82,16 +82,14 @@ def create_word_file(file_name, content, url):
             doc.add_heading(element['text'], level=level)
         elif element['type'] == 'paragraph':
             paragraph = doc.add_paragraph()
-            # Split the paragraph into text and hyperlinks
-            words = element['text'].split(' ')
-            for word in words:
-                if word.startswith('http') and '(' in word and ')' in word:
-                    # Extract anchor text and URL from the formatted string 'Text (URL)'
-                    anchor_text = word.split('(')[0].strip()
-                    link = word.split('(')[1].strip(')')
-                    add_hyperlink(paragraph, link, anchor_text)
+            # Loop through the paragraph content to add text and hyperlinks
+            for part in element['text']:
+                if 'url' in part:
+                    # If there's a URL, add it as a hyperlink
+                    add_hyperlink(paragraph, part['url'], part['text'])
                 else:
-                    paragraph.add_run(word + ' ')
+                    # Otherwise, just add the text
+                    paragraph.add_run(part['text'])
     
     # Save the Word file
     doc.save(file_name)
