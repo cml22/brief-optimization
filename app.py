@@ -1,7 +1,6 @@
 import requests
 from bs4 import BeautifulSoup
 from docx import Document
-from docx.shared import RGBColor  # Import RGBColor
 import streamlit as st
 import html
 
@@ -25,28 +24,18 @@ def extract_content_from_url(url):
                 if element.name in ['h1', 'h2', 'h3', 'h4', 'h5', 'h6']:
                     content.append({'type': 'heading', 'level': element.name, 'text': text})
                 elif element.name == 'p':
-                    paragraph = []
+                    paragraph = ""
                     for sub_element in element:
                         if sub_element.name == 'a' and sub_element.get('href'):
-                            # Append link text and URL as a tuple
+                            # Create hyperlink text in the format: 'Text (URL)'
                             anchor_text = sub_element.get_text()
                             url = sub_element.get("href")
-                            paragraph.append({'text': anchor_text, 'url': url})
-                        elif sub_element.string:
-                            paragraph.append({'text': sub_element.string})
-                    content.append({'type': 'paragraph', 'text': paragraph})
+                            paragraph += f'{anchor_text} ({url}) '  # Include link as text
+                        else:
+                            paragraph += sub_element.string if sub_element.string else ''
+                    content.append({'type': 'paragraph', 'text': paragraph.strip()})
 
     return content, h1_text  # Return the H1 text as well
-
-# Function to add a hyperlink to a Word document
-def add_hyperlink(paragraph, url, text):
-    # Add the hyperlink as text with an underlying link
-    part = paragraph.add_run(text)
-    part.font.color.rgb = RGBColor(0, 0, 255)  # Set hyperlink color to blue
-    part.underline = True  # Underline to indicate a hyperlink
-
-    # Use the `hyperlink` feature in docx to make it clickable
-    paragraph.hyperlink = url
 
 # Function to create a Word document from the extracted content
 def create_word_file(file_name, content, url):
@@ -61,16 +50,9 @@ def create_word_file(file_name, content, url):
             level = int(element['level'][1])  # Heading level (h1 = 1, h2 = 2, etc.)
             doc.add_heading(element['text'], level=level)
         elif element['type'] == 'paragraph':
-            paragraph = doc.add_paragraph()
-            # Loop through the paragraph content to add text and hyperlinks
-            for part in element['text']:
-                if 'url' in part:
-                    # If there's a URL, add it as a hyperlink
-                    add_hyperlink(paragraph, part['url'], part['text'])
-                else:
-                    # Otherwise, just add the text
-                    paragraph.add_run(part['text'])
-    
+            # Add paragraph text, replacing the hyperlink as anchor text
+            doc.add_paragraph(element['text'])
+
     # Save the Word file
     doc.save(file_name)
     return file_name
