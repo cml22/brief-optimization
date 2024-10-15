@@ -56,10 +56,13 @@ def create_word_file(file_name, content, url):
             for part in parts:
                 if '(' in part and part.endswith(')'):
                     # Extract anchor text and URL
-                    anchor_text = part[:part.index(' (')]
-                    url = part[part.index('(') + 1:-1]  # Extract URL
-                    # Add hyperlink to the document
-                    add_hyperlink(paragraph, anchor_text, url)
+                    anchor_text = part[:part.index(' (')] if ' (' in part else part
+                    url = part[part.index('(') + 1:-1] if ' (' in part else ''
+                    # Add hyperlink to the document only if the URL is present
+                    if url:
+                        add_hyperlink(paragraph, anchor_text, url)
+                    else:
+                        paragraph.add_run(part + ' ')  # Add normal text if no link
                 else:
                     paragraph.add_run(part + ' ')  # Add normal text
 
