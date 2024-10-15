@@ -1,7 +1,7 @@
 import requests
 from bs4 import BeautifulSoup
 from docx import Document
-from docx.oxml import OxmlElement
+from docx.shared import RGBColor  # Import RGBColor ici
 import streamlit as st
 import html
 
@@ -28,7 +28,7 @@ def extract_content_from_url(url):
                     paragraph = []
                     for sub_element in element:
                         if sub_element.name == 'a' and sub_element.get('href'):
-                            # Append link text and URL as a tuple
+                            # Append link text and URL as a dictionary
                             anchor_text = sub_element.get_text()
                             url = sub_element.get("href")
                             paragraph.append({'text': anchor_text, 'url': url})
@@ -40,17 +40,17 @@ def extract_content_from_url(url):
 
 # Function to add a hyperlink to a Word document
 def add_hyperlink(paragraph, url, text):
-    # Create the hyperlink using the docx internal function
-    # Add a run for the hyperlink text
+    # Create a run for the hyperlink text
     run = paragraph.add_run(text)
     run.font.color.rgb = RGBColor(0, 0, 255)  # Set hyperlink color to blue
     run.font.underline = True  # Underline the text to indicate it's a hyperlink
+    # Set the hyperlink URL
+    hyperlink = OxmlElement('w:hyperlink')
+    hyperlink.set('{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id', url)
+    hyperlink.append(run._element)
 
-    # Create a reference to the hyperlink
-    r_id = paragraph.part.relate_to(url, "hyperlink", is_external=True)
-    run._element.get_or_add_rPr().append(OxmlElement('a:hlinkClick'))
-    run._element.get_or_add_rPr().append(OxmlElement('a:rId', nsdecls='a'))
-    run._element.get_or_add_rPr().set('r:id', r_id)
+    # Append the hyperlink to the paragraph
+    paragraph._element.append(hyperlink)
 
 # Function to create a Word document from the extracted content
 def create_word_file(file_name, content, url):
