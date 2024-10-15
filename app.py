@@ -1,114 +1,62 @@
+import streamlit as st
 import requests
 from bs4 import BeautifulSoup
 from docx import Document
-from docx.shared import RGBColor  # Import RGBColor ici
-from docx.oxml import OxmlElement  # Import OxmlElement ici
-import streamlit as st
-import html
+from docx.shared import RGBColor
+from docx.oxml import parse_xml
+from docx.oxml.ns import nsdecls
 
-# Function to extract content from <h1> to <h6>, <p> tags and <a> links
-def extract_content_from_url(url):
-    response = requests.get(url)
-    response.encoding = 'utf-8'
-    soup = BeautifulSoup(response.text, 'html.parser')
+def create_word_file(filename, content, url):
+    document = Document()
 
-    content = []
-    h1_text = ""
-    start = False
-    for element in soup.find_all(['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p']):
-        if element.name == 'h1':
-            h1_text = element.get_text().strip()  # Capture the H1 text
-            start = True
-        if start:
-            text = element.get_text().strip()
-            text = html.unescape(text)  # Converts HTML entities into normal characters
-            if text:
-                if element.name in ['h1', 'h2', 'h3', 'h4', 'h5', 'h6']:
-                    content.append({'type': 'heading', 'level': element.name, 'text': text})
-                elif element.name == 'p':
-                    paragraph = []
-                    for sub_element in element:
-                        if sub_element.name == 'a' and sub_element.get('href'):
-                            # Append link text and URL as a dictionary
-                            anchor_text = sub_element.get_text()
-                            url = sub_element.get("href")
-                            paragraph.append({'text': anchor_text, 'url': url})
-                        elif sub_element.string:
-                            paragraph.append({'text': sub_element.string})
-                    content.append({'type': 'paragraph', 'text': paragraph})
+    # Titre du document
+    document.add_heading('Contenu extrait', level=1)
 
-    return content, h1_text  # Return the H1 text as well
+    # Ajout du contenu
+    for part in content:
+        paragraph = document.add_paragraph()
+        add_hyperlink(paragraph, part['url'], part['text'])
 
-# Function to add a hyperlink to a Word document
+    # Enregistrement du document
+    document.save(filename)
+
 def add_hyperlink(paragraph, url, text):
-    # Create a run for the hyperlink text
     run = paragraph.add_run(text)
     run.font.color.rgb = RGBColor(0, 0, 255)  # Set hyperlink color to blue
-    run.font.underline = True  # Underline the text to indicate it's a hyperlink
+    run.font.underline = True  # Underline for hyperlink
 
-    # Create hyperlink element
-    hyperlink = OxmlElement('w:hyperlink')
-    hyperlink.set('{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id', url)
-    hyperlink.append(run._element)
-
-    # Append the hyperlink to the paragraph
-    paragraph._element.append(hyperlink)
-
-# Function to create a Word document from the extracted content
-def create_word_file(file_name, content, url):
-    doc = Document()
+    # Add the hyperlink
+    r_id = paragraph.part.rels.add_relationship(
+        'http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink',
+        url,
+        'hyperlink',
+        target_mode='External'
+    )
     
-    # Add the URL as the first paragraph
-    doc.add_paragraph(f"URL: {url}")
+    # Set hyperlink properties
+    hyperlink = parse_xml(r'<w:hyperlink r:id="{}" xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'.format(r_id))
+    run._element.get_or_add_rPr().append(parse_xml(r'<w:rStyle w:val="Hyperlink"/>'))
 
-    # Add extracted content to the Word file with formatting
-    for element in content:
-        if element['type'] == 'heading':
-            level = int(element['level'][1])  # Heading level (h1 = 1, h2 = 2, etc.)
-            doc.add_heading(element['text'], level=level)
-        elif element['type'] == 'paragraph':
-            paragraph = doc.add_paragraph()
-            # Loop through the paragraph content to add text and hyperlinks
-            for part in element['text']:
-                if 'url' in part:
-                    # If there's a URL, add it as a hyperlink
-                    add_hyperlink(paragraph, part['url'], part['text'])
-                else:
-                    # Otherwise, just add the text
-                    paragraph.add_run(part['text'])
+def extract_content(url):
+    response = requests.get(url)
+    soup = BeautifulSoup(response.content, 'html.parser')
+
+    # Extraire le contenu, modifie cela selon tes besoins
+    content = []
+    for link in soup.find_all('a'):
+        content.append({
+            'text': link.get_text(),
+            'url': link.get('href')
+        })
     
-    # Save the Word file
-    doc.save(file_name)
-    return file_name
+    return content
 
-# Streamlit interface
-st.title("HTML Content Extractor to Word")
-url = st.text_input("Enter the page URL")
-jira_link = st.text_input("Add the JIRA link (TT - Traffic Team)")
-
-if st.button("Generate Word File"):
-    if url:
-        # Extract content from the URL
-        content, h1_text = extract_content_from_url(url)
-        if content:
-            # Determine the file name based on the JIRA link
-            if jira_link:
-                ticket_number = jira_link[-4:]
-                filename = f"Brief SEO Optimization - TT-{ticket_number}.docx"
-            else:
-                filename = f"{h1_text}.docx"  # Use H1 text if JIRA link is empty
-
-            # Create the Word file
-            create_word_file(filename, content, url)  # Pass URL to the function
-
-            with open(filename, "rb") as file:
-                # Automatically trigger the download
-                st.download_button(
-                    label="Your file is ready! Click to download",
-                    data=file,
-                    file_name=filename
-                )
-        else:
-            st.error("Unable to extract content from this URL.")
-    else:
-        st.error("Please fill out the URL field.")
+# Streamlit application
+st.title('HTML Content Extractor to Word')
+url_input = st.text_input('Enter the page URL')
+jira_input = st.text_input('Add the JIRA link (TT - Traffic Team)')
+if st.button('Create Word File'):
+    content = extract_content(url_input)
+    filename = 'extracted_content.docx'
+    create_word_file(filename, content, url_input)
+    st.success(f'Word file created: {filename}')
