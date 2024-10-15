@@ -2,6 +2,8 @@ import requests
 from bs4 import BeautifulSoup
 from docx import Document
 from docx.oxml import OxmlElement
+from docx.oxml.ns import qn
+from docx.shared import Pt
 import streamlit as st
 import html
 import re  # Import regex for better matching
@@ -75,20 +77,30 @@ def create_word_file(file_name, content, url):
 
 # Function to add a hyperlink to a paragraph
 def add_hyperlink(paragraph, text, url):
-    # Create a hyperlink in the Word document
-    r_id = paragraph.part.relate_to(url, docx.oxml.ns.nsdecls('r'))
+    # This function adds a clickable hyperlink to a paragraph
+    part = paragraph.part
+    r_id = part.relate_to(url, docx.oxml.ns.RT.HYPERLINK, is_external=True)
+    
+    # Create the w:hyperlink tag and add needed attributes
     hyperlink = OxmlElement('w:hyperlink')
-    hyperlink.set('r:id', r_id)
-    hyperlink.set('w:history', '1')
-
-    # Create a run for the hyperlink text
+    hyperlink.set(qn('r:id'), r_id)
+    
+    # Create the w:r element (run), where we put the text of the hyperlink
     run = OxmlElement('w:r')
-    text_element = OxmlElement('w:t')
-    text_element.text = text
-    run.append(text_element)
-    hyperlink.append(run)
+    
+    # Add the text to the run
+    rPr = OxmlElement('w:rPr')  # Add hyperlink style (This will make it blue and underlined)
+    rStyle = OxmlElement('w:rStyle')
+    rStyle.set(qn('w:val'), 'Hyperlink')
+    rPr.append(rStyle)
+    run.append(rPr)
+    
+    text_elem = OxmlElement('w:t')
+    text_elem.text = text
+    run.append(text_elem)
 
-    # Append the hyperlink to the paragraph
+    # Add the run to the hyperlink element, and then to the paragraph
+    hyperlink.append(run)
     paragraph._element.append(hyperlink)
 
 # Streamlit interface
