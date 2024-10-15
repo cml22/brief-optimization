@@ -1,5 +1,6 @@
 streamlit
-requests
 beautifulsoup4
+requests
 python-docx
 lxml
+html5lib
