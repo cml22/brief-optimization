@@ -3,6 +3,7 @@ import requests
 from bs4 import BeautifulSoup
 from docx import Document
 from docx.shared import RGBColor
+import docx.oxml  # Assurez-vous que cette ligne est incluse pour utiliser oxml
 
 def create_word_file(filename, content):
     document = Document()
