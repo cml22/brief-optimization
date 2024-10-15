@@ -1,30 +1,8 @@
 import requests
 from bs4 import BeautifulSoup
 from docx import Document
-from docx.oxml.shared import OxmlElement
-from docx.oxml.ns import qn
 import streamlit as st
 import html
-
-# Function to add a hyperlink in a Word document
-def add_hyperlink(paragraph, url, text):
-    # Create a new run for the hyperlink
-    run = paragraph.add_run(text)
-    run.font.color.rgb = docx.shared.RGBColor(0, 0, 255)  # Blue color for links
-    run.font.underline = True  # Underline to indicate hyperlink
-
-    # Create the XML structure for the hyperlink
-    r_id = paragraph.part.relate_to(url, docx.opc.constants.RELATIONSHIP_TYPE.HYPERLINK, is_external=True)
-    hyperlink = OxmlElement('w:hyperlink')
-    hyperlink.set(qn('r:id'), r_id)
-
-    new_run = OxmlElement('w:r')
-    r_pr = OxmlElement('w:rPr')
-    new_run.append(r_pr)
-    new_run.text = text
-    hyperlink.append(new_run)
-
-    paragraph._p.append(hyperlink)  # Append the hyperlink to the paragraph
 
 # Function to extract content from <h1> to <h6>, <p> tags and <a> links
 def extract_content_from_url(url):
@@ -46,16 +24,16 @@ def extract_content_from_url(url):
                 if element.name in ['h1', 'h2', 'h3', 'h4', 'h5', 'h6']:
                     content.append({'type': 'heading', 'level': element.name, 'text': text})
                 elif element.name == 'p':
-                    paragraph = []
+                    paragraph = ""
                     for sub_element in element:
                         if sub_element.name == 'a' and sub_element.get('href'):
-                            # Store as a tuple of (text, link)
+                            # Create hyperlink text in the format: 'Text (URL)'
                             anchor_text = sub_element.get_text()
                             url = sub_element.get("href")
-                            paragraph.append((anchor_text, url))  # Store as a tuple of (text, link)
+                            paragraph += f'{anchor_text} ({url}) '  # Include link as text
                         else:
-                            paragraph.append((sub_element.string, None))  # Store as a tuple (text, None)
-                    content.append({'type': 'paragraph', 'text': paragraph})
+                            paragraph += sub_element.string if sub_element.string else ''
+                    content.append({'type': 'paragraph', 'text': paragraph.strip()})
 
     return content, h1_text  # Return the H1 text as well
 
@@ -72,13 +50,8 @@ def create_word_file(file_name, content, url):
             level = int(element['level'][1])  # Heading level (h1 = 1, h2 = 2, etc.)
             doc.add_heading(element['text'], level=level)
         elif element['type'] == 'paragraph':
-            # Add paragraph text, making links clickable
-            paragraph = doc.add_paragraph()  # Create a new paragraph
-            for text, link in element['text']:
-                if link:  # If there's a link, make it a hyperlink
-                    add_hyperlink(paragraph, link, text)  # Create a hyperlink
-                else:  # Just regular text
-                    paragraph.add_run(text if text else '')  # Add only text if it exists
+            # Add paragraph text, replacing the hyperlink as anchor text
+            doc.add_paragraph(element['text'])
 
     # Save the Word file
     doc.save(file_name)
