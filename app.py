@@ -3,7 +3,8 @@ import requests
 from bs4 import BeautifulSoup
 from docx import Document
 from docx.shared import RGBColor
-import docx.oxml  # Assurez-vous que cette ligne est incluse pour utiliser oxml
+from docx.oxml import OxmlElement  # Import direct d'OxmlElement
+from docx.oxml.ns import qn  # Pour les namespaces
 
 def create_word_file(filename, content):
     document = Document()
@@ -26,23 +27,23 @@ def add_hyperlink(doc, paragraph, url, text):
     run.font.color.rgb = RGBColor(0, 0, 255)  # Couleur bleue pour le lien
     run.font.underline = True  # Souligner le lien
 
-    # Obtenir la partie où la relation doit être ajoutée
-    r_id = doc.part.rels.add_relationship(
+    # Ajouter la relation du lien hypertexte
+    part = paragraph.part
+    r_id = part.rels.add_relationship(
         'http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink',
         url,
-        'hyperlink',
         is_external=True
     )
 
-    # Ajouter l'élément XML pour l'hyperlien
-    hyperlink = docx.oxml.shared.OxmlElement('w:hyperlink')
-    hyperlink.set(docx.oxml.ns.qn('r:id'), r_id)
+    # Crée l'élément XML pour l'hyperlien
+    hyperlink = OxmlElement('w:hyperlink')
+    hyperlink.set(qn('r:id'), r_id)
 
-    new_run = docx.oxml.shared.OxmlElement('w:r')
-    rPr = docx.oxml.shared.OxmlElement('w:rPr')
+    new_run = OxmlElement('w:r')
+    rPr = OxmlElement('w:rPr')
     new_run.append(rPr)
 
-    t = docx.oxml.shared.OxmlElement('w:t')
+    t = OxmlElement('w:t')
     t.text = text
     new_run.append(t)
 
