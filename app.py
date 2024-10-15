@@ -3,8 +3,6 @@ import requests
 from bs4 import BeautifulSoup
 from docx import Document
 from docx.shared import RGBColor
-from docx.oxml import OxmlElement  # Import direct d'OxmlElement
-from docx.oxml.ns import qn  # Pour les namespaces
 
 def create_word_file(filename, content):
     document = Document()
@@ -13,42 +11,22 @@ def create_word_file(filename, content):
     # Ajout du contenu
     for part in content:
         paragraph = document.add_paragraph()
-        add_hyperlink(document, paragraph, part['url'], part['text'])
+        add_hyperlink(paragraph, part['url'], part['text'])
 
     # Enregistrement du document
     document.save(filename)
 
-def add_hyperlink(doc, paragraph, url, text):
+def add_hyperlink(paragraph, url, text):
     """
-    Ajoute un hyperlien à un paragraphe dans un document Word.
+    Ajoute un lien hypertexte à un paragraphe dans un document Word.
     """
-    # Crée un run pour l'hyperlien
+    # Ajouter le texte avec formatage pour simuler un lien hypertexte
     run = paragraph.add_run(text)
-    run.font.color.rgb = RGBColor(0, 0, 255)  # Couleur bleue pour le lien
-    run.font.underline = True  # Souligner le lien
+    run.font.color.rgb = RGBColor(0, 0, 255)  # Couleur bleue pour les liens
+    run.font.underline = True  # Souligner le texte du lien
 
-    # Ajouter la relation du lien hypertexte
-    part = paragraph.part
-    r_id = part.rels.add_relationship(
-        'http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink',
-        url,
-        is_external=True
-    )
-
-    # Crée l'élément XML pour l'hyperlien
-    hyperlink = OxmlElement('w:hyperlink')
-    hyperlink.set(qn('r:id'), r_id)
-
-    new_run = OxmlElement('w:r')
-    rPr = OxmlElement('w:rPr')
-    new_run.append(rPr)
-
-    t = OxmlElement('w:t')
-    t.text = text
-    new_run.append(t)
-
-    hyperlink.append(new_run)
-    paragraph._element.append(hyperlink)
+    # Ajoute l'URL entre parenthèses à côté du texte
+    paragraph.add_run(f" ({url})")
 
 def extract_content(url):
     response = requests.get(url)
