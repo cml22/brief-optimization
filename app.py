@@ -4,6 +4,7 @@ from docx import Document
 from docx.oxml import OxmlElement
 import streamlit as st
 import html
+import re  # Import regex for better matching
 
 # Function to extract content from <h1> to <h6>, <p> tags and <a> links
 def extract_content_from_url(url):
@@ -52,19 +53,21 @@ def create_word_file(file_name, content, url):
             doc.add_heading(element['text'], level=level)
         elif element['type'] == 'paragraph':
             paragraph = doc.add_paragraph()
-            parts = element['text'].split(' ')
+            # Regex pattern to capture anchor text and URL
+            pattern = re.compile(r"(.*?)(\s+\((https?://[^\s]+)\))?$")
+            parts = element['text'].split('. ')
             for part in parts:
-                if '(' in part and part.endswith(')'):
-                    # Extract anchor text and URL
-                    anchor_text = part[:part.index(' (')] if ' (' in part else part
-                    url = part[part.index('(') + 1:-1] if ' (' in part else ''
+                match = pattern.match(part.strip())
+                if match:
+                    anchor_text = match.group(1).strip()  # Get anchor text
+                    url = match.group(3) if match.group(3) else ''  # Get URL if available
                     # Add hyperlink to the document only if the URL is present
                     if url:
                         add_hyperlink(paragraph, anchor_text, url)
                     else:
-                        paragraph.add_run(part + ' ')  # Add normal text if no link
+                        paragraph.add_run(anchor_text + ' ')  # Add normal text if no link
                 else:
-                    paragraph.add_run(part + ' ')  # Add normal text
+                    paragraph.add_run(part + ' ')  # Add normal text if no match
 
     # Save the Word file
     doc.save(file_name)
