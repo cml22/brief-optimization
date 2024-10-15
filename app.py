@@ -1,6 +1,8 @@
 import requests
 from bs4 import BeautifulSoup
 from docx import Document
+from docx.oxml import parse_xml
+from docx.oxml.ns import nsdecls
 import streamlit as st
 import html
 
@@ -40,10 +42,11 @@ def extract_content_from_url(url):
 # Function to add a hyperlink to a Word document
 def add_hyperlink(paragraph, url, text):
     # Add the hyperlink as text with an underlying link
-    part = paragraph.add_run(text)
-    part.underline = True  # Underline to indicate a hyperlink
-    # This adds the actual hyperlink (which will be clickable in Word)
-    paragraph.hyperlink = url
+    run = paragraph.add_run(text)
+    run.bold = True  # Optionally make the hyperlink bold
+    # Create the hyperlink
+    r_id = paragraph.part.relate_to(url, "hyperlink", is_external=True)
+    run._element.get_or_add_rPr().append(parse_xml(r'<a:blip r:link="{}"/>'.format(r_id)))
 
 # Function to create a Word document from the extracted content
 def create_word_file(file_name, content, url):
