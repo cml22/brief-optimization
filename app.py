@@ -1,6 +1,7 @@
 import requests
 from bs4 import BeautifulSoup
 from docx import Document
+from docx.shared import RGBColor  # Import RGBColor
 import streamlit as st
 import html
 
