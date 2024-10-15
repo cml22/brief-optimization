@@ -3,7 +3,6 @@ import requests
 from bs4 import BeautifulSoup
 from docx import Document
 from docx.shared import RGBColor
-from docx.oxml import OxmlElement
 
 def create_word_file(filename, content):
     document = Document()
@@ -12,37 +11,41 @@ def create_word_file(filename, content):
     # Ajout du contenu
     for part in content:
         paragraph = document.add_paragraph()
-        add_hyperlink(paragraph, part['url'], part['text'])
+        add_hyperlink(document, paragraph, part['url'], part['text'])
 
     # Enregistrement du document
     document.save(filename)
 
-def add_hyperlink(paragraph, url, text):
-    # Créer un nouveau run pour le texte du lien
+def add_hyperlink(doc, paragraph, url, text):
+    """
+    Ajoute un hyperlien à un paragraphe dans un document Word.
+    """
+    # Crée un run pour l'hyperlien
     run = paragraph.add_run(text)
     run.font.color.rgb = RGBColor(0, 0, 255)  # Couleur bleue pour le lien
     run.font.underline = True  # Souligner le lien
 
-    # Créer la relation d'hyperlien
-    r_id = paragraph.part.rels.add_relationship(
+    # Obtenir la partie où la relation doit être ajoutée
+    r_id = doc.part.rels.add_relationship(
         'http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink',
         url,
         'hyperlink',
-        target_mode='External'
+        is_external=True
     )
 
-    # Créer l'élément hyperlink et l'ajouter au paragraphe
-    hyperlink = OxmlElement('w:hyperlink')
-    hyperlink.set('{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id', r_id)
-    
-    # Créer un nouveau run pour le lien et l'ajouter à l'élément hyperlink
-    new_run = OxmlElement('w:r')
-    text_element = OxmlElement('w:t')
-    text_element.text = text
-    new_run.append(text_element)
+    # Ajouter l'élément XML pour l'hyperlien
+    hyperlink = docx.oxml.shared.OxmlElement('w:hyperlink')
+    hyperlink.set(docx.oxml.ns.qn('r:id'), r_id)
+
+    new_run = docx.oxml.shared.OxmlElement('w:r')
+    rPr = docx.oxml.shared.OxmlElement('w:rPr')
+    new_run.append(rPr)
+
+    t = docx.oxml.shared.OxmlElement('w:t')
+    t.text = text
+    new_run.append(t)
+
     hyperlink.append(new_run)
-    
-    # Ajouter l'élément hyperlink au paragraphe
     paragraph._element.append(hyperlink)
 
 def extract_content(url):
