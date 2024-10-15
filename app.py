@@ -42,10 +42,14 @@ def extract_content_from_url(url):
 def add_hyperlink(paragraph, url, text):
     # Create a run for the hyperlink text
     run = paragraph.add_run(text)
+    
     # Add hyperlink using the Document's `part` reference
     r_id = paragraph.part.relate_to(url, "hyperlink", is_external=True)
-    run._element.add_hyperlink(r_id)
+    run._element.get_or_add_rPr().append(
+        parse_xml(r'<a:blip r:embed="{}"/>'.format(r_id))
+    )
 
+    # Style the hyperlink
     run.font.color.rgb = RGBColor(0, 0, 255)  # Set hyperlink color to blue
     run.font.underline = True  # Underline the hyperlink
 
