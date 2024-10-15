@@ -1,12 +1,11 @@
 import requests
 from bs4 import BeautifulSoup
 from docx import Document
-from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
-from docx.shared import Pt
+from docx.oxml import OxmlElement
 import streamlit as st
 import html
-import re  # Import regex for better matching
+
 
 # Function to extract content from <h1> to <h6>, <p> tags and <a> links
 def extract_content_from_url(url):
@@ -28,18 +27,38 @@ def extract_content_from_url(url):
                 if element.name in ['h1', 'h2', 'h3', 'h4', 'h5', 'h6']:
                     content.append({'type': 'heading', 'level': element.name, 'text': text})
                 elif element.name == 'p':
-                    paragraph = ""
+                    paragraph = []
                     for sub_element in element:
                         if sub_element.name == 'a' and sub_element.get('href'):
-                            # Create hyperlink text in the format: 'Text (URL)'
+                            # Capture hyperlink text and URL
                             anchor_text = sub_element.get_text()
-                            url = sub_element.get("href")
-                            paragraph += f'{anchor_text} ({url}) '  # Include link as text
+                            link = sub_element.get("href")
+                            paragraph.append({'type': 'link', 'text': anchor_text, 'url': link})
                         else:
-                            paragraph += sub_element.string if sub_element.string else ''
-                    content.append({'type': 'paragraph', 'text': paragraph.strip()})
+                            paragraph.append({'type': 'text', 'text': sub_element.string if sub_element.string else ''})
+                    content.append({'type': 'paragraph', 'content': paragraph})
 
     return content, h1_text  # Return the H1 text as well
+
+
+# Function to add a hyperlink to a paragraph in Word
+def add_hyperlink(paragraph, text, url):
+    # Create the w:hyperlink tag and add needed values
+    part = paragraph.add_run(text)
+    r_id = paragraph._element.getparent().add_relationship(
+        'http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink', url, is_external=True)
+    hyperlink = OxmlElement('w:hyperlink')
+    hyperlink.set(qn('r:id'), r_id)
+    
+    # Create a new run, and add it as the hyperlink
+    new_run = OxmlElement('w:r')
+    rPr = OxmlElement('w:rPr')
+    new_run.append(rPr)
+    new_run.append(OxmlElement('w:t')).text = text
+
+    hyperlink.append(new_run)
+    paragraph._element.append(hyperlink)
+
 
 # Function to create a Word document from the extracted content
 def create_word_file(file_name, content, url):
@@ -55,53 +74,16 @@ def create_word_file(file_name, content, url):
             doc.add_heading(element['text'], level=level)
         elif element['type'] == 'paragraph':
             paragraph = doc.add_paragraph()
-            # Regex pattern to capture anchor text and URL
-            pattern = re.compile(r"(.*?)(\s+\((https?://[^\s]+)\))?$")
-            parts = element['text'].split('. ')
-            for part in parts:
-                match = pattern.match(part.strip())
-                if match:
-                    anchor_text = match.group(1).strip()  # Get anchor text
-                    url = match.group(3) if match.group(3) else ''  # Get URL if available
-                    # Add hyperlink to the document only if the URL is present
-                    if url:
-                        add_hyperlink(paragraph, anchor_text, url)
-                    else:
-                        paragraph.add_run(anchor_text + ' ')  # Add normal text if no link
-                else:
-                    paragraph.add_run(part + ' ')  # Add normal text if no match
+            for sub_element in element['content']:
+                if sub_element['type'] == 'link':
+                    add_hyperlink(paragraph, sub_element['text'], sub_element['url'])
+                elif sub_element['type'] == 'text':
+                    paragraph.add_run(sub_element['text'])
 
     # Save the Word file
     doc.save(file_name)
     return file_name
 
-# Function to add a hyperlink to a paragraph
-def add_hyperlink(paragraph, text, url):
-    # This function adds a clickable hyperlink to a paragraph
-    part = paragraph.part
-    r_id = part.relate_to(url, docx.oxml.ns.RT.HYPERLINK, is_external=True)
-    
-    # Create the w:hyperlink tag and add needed attributes
-    hyperlink = OxmlElement('w:hyperlink')
-    hyperlink.set(qn('r:id'), r_id)
-    
-    # Create the w:r element (run), where we put the text of the hyperlink
-    run = OxmlElement('w:r')
-    
-    # Add the text to the run
-    rPr = OxmlElement('w:rPr')  # Add hyperlink style (This will make it blue and underlined)
-    rStyle = OxmlElement('w:rStyle')
-    rStyle.set(qn('w:val'), 'Hyperlink')
-    rPr.append(rStyle)
-    run.append(rPr)
-    
-    text_elem = OxmlElement('w:t')
-    text_elem.text = text
-    run.append(text_elem)
-
-    # Add the run to the hyperlink element, and then to the paragraph
-    hyperlink.append(run)
-    paragraph._element.append(hyperlink)
 
 # Streamlit interface
 st.title("HTML Content Extractor to Word")
