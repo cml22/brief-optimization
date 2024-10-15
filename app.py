@@ -8,7 +8,7 @@ def create_word_file(filename, content):
     document = Document()
     document.add_heading('Contenu extrait', level=1)
 
-    # Ajout du contenu
+    # Ajout du contenu avec les liens simulés
     for part in content:
         paragraph = document.add_paragraph()
         add_hyperlink(paragraph, part['url'], part['text'])
@@ -18,39 +18,41 @@ def create_word_file(filename, content):
 
 def add_hyperlink(paragraph, url, text):
     """
-    Ajoute un lien hypertexte à un paragraphe dans un document Word.
+    Simule un lien hypertexte dans un document Word en ajoutant du texte bleu et souligné.
     """
-    # Ajouter le texte avec formatage pour simuler un lien hypertexte
     run = paragraph.add_run(text)
-    run.font.color.rgb = RGBColor(0, 0, 255)  # Couleur bleue pour les liens
-    run.font.underline = True  # Souligner le texte du lien
+    run.font.color.rgb = RGBColor(0, 0, 255)  # Couleur bleue pour le texte du lien
+    run.font.underline = True  # Texte souligné pour simuler un lien hypertexte
 
-    # Ajoute l'URL entre parenthèses à côté du texte
+    # Ajoute l'URL entre parenthèses après le texte du lien
     paragraph.add_run(f" ({url})")
 
 def extract_content(url):
     response = requests.get(url)
     soup = BeautifulSoup(response.content, 'html.parser')
 
-    # Extraire le contenu
+    # Extraire tous les liens
     content = []
     for link in soup.find_all('a'):
         content.append({
             'text': link.get_text() or "Lien sans texte",  # Gérer les liens sans texte
-            'url': link.get('href')
+            'url': link.get('href') or "#"  # Gérer les liens sans URL
         })
     
     return content
 
 # Application Streamlit
-st.title('HTML Content Extractor to Word')
-url_input = st.text_input('Enter the page URL')
-jira_input = st.text_input('Add the JIRA link (TT - Traffic Team)')
-if st.button('Create Word File'):
-    content = extract_content(url_input)
-    if content:  # Vérifie que du contenu a été extrait
-        filename = 'extracted_content.docx'
-        create_word_file(filename, content)
-        st.success(f'Word file created: {filename}')
+st.title('Extraction de contenu HTML vers Word')
+url_input = st.text_input('Entrez l\'URL de la page')
+jira_input = st.text_input('Ajouter le lien JIRA (TT - Traffic Team)')
+if st.button('Créer le fichier Word'):
+    if url_input:
+        content = extract_content(url_input)
+        if content:  # Vérifie que du contenu a été extrait
+            filename = 'extracted_content.docx'
+            create_word_file(filename, content)
+            st.success(f'Fichier Word créé : {filename}')
+        else:
+            st.error('Aucun lien trouvé sur la page.')
     else:
-        st.error('Aucun lien trouvé sur la page.')
+        st.error('Veuillez entrer une URL.')
