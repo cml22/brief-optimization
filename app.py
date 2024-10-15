@@ -7,8 +7,6 @@ from docx.oxml import OxmlElement
 
 def create_word_file(filename, content):
     document = Document()
-
-    # Titre du document
     document.add_heading('Contenu extrait', level=1)
 
     # Ajout du contenu
@@ -36,8 +34,10 @@ def add_hyperlink(paragraph, url, text):
     # Create the hyperlink XML element
     hyperlink = OxmlElement('w:hyperlink')
     hyperlink.set('{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id', r_id)
-    hyperlink.append(run._element)  # Add the run to the hyperlink
 
+    # Append run to the hyperlink
+    hyperlink.append(run._element)
+    
     # Append hyperlink to the paragraph
     paragraph._element.append(hyperlink)
 
@@ -45,7 +45,7 @@ def extract_content(url):
     response = requests.get(url)
     soup = BeautifulSoup(response.content, 'html.parser')
 
-    # Extraire le contenu, modifie cela selon tes besoins
+    # Extraire le contenu
     content = []
     for link in soup.find_all('a'):
         content.append({
@@ -55,7 +55,7 @@ def extract_content(url):
     
     return content
 
-# Streamlit application
+# Application Streamlit
 st.title('HTML Content Extractor to Word')
 url_input = st.text_input('Enter the page URL')
 jira_input = st.text_input('Add the JIRA link (TT - Traffic Team)')
