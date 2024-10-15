@@ -35,8 +35,12 @@ def add_hyperlink(paragraph, url, text):
     hyperlink = OxmlElement('w:hyperlink')
     hyperlink.set('{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id', r_id)
     
-    # Ajouter le texte du lien à l'élément hyperlink
-    hyperlink.append(run._element)
+    # Créer un nouveau run pour le lien et l'ajouter à l'élément hyperlink
+    new_run = OxmlElement('w:r')
+    text_element = OxmlElement('w:t')
+    text_element.text = text
+    new_run.append(text_element)
+    hyperlink.append(new_run)
     
     # Ajouter l'élément hyperlink au paragraphe
     paragraph._element.append(hyperlink)
