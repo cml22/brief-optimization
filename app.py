@@ -31,14 +31,14 @@ def add_hyperlink(paragraph, url, text):
         target_mode='External'
     )
 
-    # Ajouter le lien hypertexte au paragraphe
+    # Créer l'élément hyperlink et l'ajouter au paragraphe
     hyperlink = OxmlElement('w:hyperlink')
     hyperlink.set('{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id', r_id)
-
-    # Append the run to the hyperlink element
+    
+    # Ajouter le texte du lien à l'élément hyperlink
     hyperlink.append(run._element)
     
-    # Append the hyperlink element to the paragraph
+    # Ajouter l'élément hyperlink au paragraphe
     paragraph._element.append(hyperlink)
 
 def extract_content(url):
@@ -49,7 +49,7 @@ def extract_content(url):
     content = []
     for link in soup.find_all('a'):
         content.append({
-            'text': link.get_text(),
+            'text': link.get_text() or "Lien sans texte",  # Gérer les liens sans texte
             'url': link.get('href')
         })
     
@@ -61,6 +61,9 @@ url_input = st.text_input('Enter the page URL')
 jira_input = st.text_input('Add the JIRA link (TT - Traffic Team)')
 if st.button('Create Word File'):
     content = extract_content(url_input)
-    filename = 'extracted_content.docx'
-    create_word_file(filename, content)
-    st.success(f'Word file created: {filename}')
+    if content:  # Vérifie que du contenu a été extrait
+        filename = 'extracted_content.docx'
+        create_word_file(filename, content)
+        st.success(f'Word file created: {filename}')
+    else:
+        st.error('Aucun lien trouvé sur la page.')
