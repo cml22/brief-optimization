@@ -18,12 +18,12 @@ def create_word_file(filename, content):
     document.save(filename)
 
 def add_hyperlink(paragraph, url, text):
-    # Add the hyperlink run
+    # Créer un nouveau run pour le texte du lien
     run = paragraph.add_run(text)
-    run.font.color.rgb = RGBColor(0, 0, 255)  # Set hyperlink color to blue
-    run.font.underline = True  # Underline for hyperlink
+    run.font.color.rgb = RGBColor(0, 0, 255)  # Couleur bleue pour le lien
+    run.font.underline = True  # Souligner le lien
 
-    # Create the hyperlink relationship
+    # Créer la relation d'hyperlien
     r_id = paragraph.part.rels.add_relationship(
         'http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink',
         url,
@@ -31,14 +31,14 @@ def add_hyperlink(paragraph, url, text):
         target_mode='External'
     )
 
-    # Create the hyperlink XML element
+    # Ajouter le lien hypertexte au paragraphe
     hyperlink = OxmlElement('w:hyperlink')
     hyperlink.set('{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id', r_id)
 
-    # Append run to the hyperlink
+    # Append the run to the hyperlink element
     hyperlink.append(run._element)
     
-    # Append hyperlink to the paragraph
+    # Append the hyperlink element to the paragraph
     paragraph._element.append(hyperlink)
 
 def extract_content(url):
