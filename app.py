@@ -1,6 +1,7 @@
 import requests
 from bs4 import BeautifulSoup
 from docx import Document
+from docx.shared import RGBColor  # Correct import for color
 import streamlit as st
 import html
 
@@ -60,7 +61,7 @@ def create_word_file(file_name, content, url):
                 elif part[0] == 'link':
                     # Add hyperlink with underline and blue color
                     run = paragraph.add_run(part[1])
-                    run.font.color.rgb = (0, 0, 255)  # Blue color
+                    run.font.color.rgb = RGBColor(0, 0, 255)  # Correct color usage
                     run.font.underline = True
 
     # Save the Word file
