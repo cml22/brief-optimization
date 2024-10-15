@@ -1,5 +1,5 @@
-requests
-beautifulsoup4
-python-docx
 streamlit
+beautifulsoup4
+requests
+python-docx
 lxml
