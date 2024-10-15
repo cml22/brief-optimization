@@ -1,7 +1,6 @@
 import requests
 from bs4 import BeautifulSoup
 from docx import Document
-from docx.shared import RGBColor  # Import RGBColor
 import streamlit as st
 import html
 
@@ -42,10 +41,8 @@ def extract_content_from_url(url):
 def add_hyperlink(paragraph, url, text):
     # Add the hyperlink as text with an underlying link
     part = paragraph.add_run(text)
-    part.font.color.rgb = RGBColor(0, 0, 255)  # Set hyperlink color to blue
     part.underline = True  # Underline to indicate a hyperlink
-
-    # Use the `hyperlink` feature in docx to make it clickable
+    # This adds the actual hyperlink (which will be clickable in Word)
     paragraph.hyperlink = url
 
 # Function to create a Word document from the extracted content
