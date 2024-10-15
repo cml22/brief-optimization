@@ -1,72 +1,108 @@
-import streamlit as st
 import requests
 from bs4 import BeautifulSoup
 from docx import Document
-from docx.shared import RGBColor
-import os
+from docx.shared import RGBColor  # Import RGBColor
+import streamlit as st
+import html
 
-def create_word_file(filename, content, jira_link):
-    document = Document()
-    document.add_heading('Contenu extrait', level=1)
-
-    # Ajout du contenu avec les liens simulés
-    for part in content:
-        paragraph = document.add_paragraph()
-        add_hyperlink(paragraph, part['url'], part['text'])
-
-    # Ajouter le lien JIRA à la fin du document
-    if jira_link:
-        document.add_paragraph('Lien JIRA :')
-        paragraph = document.add_paragraph()
-        add_hyperlink(paragraph, jira_link, jira_link)
-
-    # Enregistrement du document
-    document.save(filename)
-
-def add_hyperlink(paragraph, url, text):
-    """
-    Simule un lien hypertexte dans un document Word en ajoutant du texte bleu et souligné.
-    """
-    run = paragraph.add_run(text)
-    run.font.color.rgb = RGBColor(0, 0, 255)  # Couleur bleue pour le texte du lien
-    run.font.underline = True  # Texte souligné pour simuler un lien hypertexte
-
-    # Ajoute l'URL entre parenthèses après le texte du lien
-    paragraph.add_run(f" ({url})")
-
-def extract_content(url):
+# Function to extract content from <h1> to <h6>, <p> tags and <a> links
+def extract_content_from_url(url):
     response = requests.get(url)
-    soup = BeautifulSoup(response.content, 'html.parser')
+    response.encoding = 'utf-8'
+    soup = BeautifulSoup(response.text, 'html.parser')
 
-    # Extraire tous les liens
     content = []
-    for link in soup.find_all('a'):
-        content.append({
-            'text': link.get_text() or "Lien sans texte",  # Gérer les liens sans texte
-            'url': link.get('href') or "#"  # Gérer les liens sans URL
-        })
+    h1_text = ""
+    start = False
+    for element in soup.find_all(['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p']):
+        if element.name == 'h1':
+            h1_text = element.get_text().strip()  # Capture the H1 text
+            start = True
+        if start:
+            text = element.get_text().strip()
+            text = html.unescape(text)  # Converts HTML entities into normal characters
+            if text:
+                if element.name in ['h1', 'h2', 'h3', 'h4', 'h5', 'h6']:
+                    content.append({'type': 'heading', 'level': element.name, 'text': text})
+                elif element.name == 'p':
+                    paragraph = []
+                    for sub_element in element:
+                        if sub_element.name == 'a' and sub_element.get('href'):
+                            # Append link text and URL as a tuple
+                            anchor_text = sub_element.get_text()
+                            url = sub_element.get("href")
+                            paragraph.append({'text': anchor_text, 'url': url})
+                        elif sub_element.string:
+                            paragraph.append({'text': sub_element.string})
+                    content.append({'type': 'paragraph', 'text': paragraph})
+
+    return content, h1_text  # Return the H1 text as well
+
+# Function to add a hyperlink to a Word document
+def add_hyperlink(paragraph, url, text):
+    # Add the hyperlink as text with an underlying link
+    part = paragraph.add_run(text)
+    part.font.color.rgb = RGBColor(0, 0, 255)  # Set hyperlink color to blue
+    part.underline = True  # Underline to indicate a hyperlink
+
+    # Use the `hyperlink` feature in docx to make it clickable
+    paragraph.hyperlink = url
+
+# Function to create a Word document from the extracted content
+def create_word_file(file_name, content, url):
+    doc = Document()
     
-    return content
+    # Add the URL as the first paragraph
+    doc.add_paragraph(f"URL: {url}")
 
-# Application Streamlit
-st.title('Extraction de contenu HTML vers Word')
-url_input = st.text_input('Entrez l\'URL de la page')
-jira_input = st.text_input('Ajouter le lien JIRA (TT - Traffic Team)')
-if st.button('Créer le fichier Word'):
-    if url_input:
-        content = extract_content(url_input)
-        if content:  # Vérifie que du contenu a été extrait
-            filename = 'extracted_content.docx'
-            create_word_file(filename, content, jira_input)
-            st.success(f'Fichier Word créé : {filename}')
-            
-            # Offrir le fichier à télécharger
-            with open(filename, 'rb') as f:
-                st.download_button('Télécharger le fichier Word', f, file_name=filename)
+    # Add extracted content to the Word file with formatting
+    for element in content:
+        if element['type'] == 'heading':
+            level = int(element['level'][1])  # Heading level (h1 = 1, h2 = 2, etc.)
+            doc.add_heading(element['text'], level=level)
+        elif element['type'] == 'paragraph':
+            paragraph = doc.add_paragraph()
+            # Loop through the paragraph content to add text and hyperlinks
+            for part in element['text']:
+                if 'url' in part:
+                    # If there's a URL, add it as a hyperlink
+                    add_hyperlink(paragraph, part['url'], part['text'])
+                else:
+                    # Otherwise, just add the text
+                    paragraph.add_run(part['text'])
+    
+    # Save the Word file
+    doc.save(file_name)
+    return file_name
 
-            # Supprimer le fichier local après l'avoir téléchargé
-            os.remove(filename)
+# Streamlit interface
+st.title("HTML Content Extractor to Word")
+url = st.text_input("Enter the page URL")
+jira_link = st.text_input("Add the JIRA link (TT - Traffic Team)")
+
+if st.button("Generate Word File"):
+    if url:
+        # Extract content from the URL
+        content, h1_text = extract_content_from_url(url)
+        if content:
+            # Determine the file name based on the JIRA link
+            if jira_link:
+                ticket_number = jira_link[-4:]
+                filename = f"Brief SEO Optimization - TT-{ticket_number}.docx"
+            else:
+                filename = f"{h1_text}.docx"  # Use H1 text if JIRA link is empty
+
+            # Create the Word file
+            create_word_file(filename, content, url)  # Pass URL to the function
+
+            with open(filename, "rb") as file:
+                # Automatically trigger the download
+                st.download_button(
+                    label="Your file is ready! Click to download",
+                    data=file,
+                    file_name=filename
+                )
         else:
-            st.error('Aucun lien trouvé sur la page.')
+            st.error("Unable to extract content from this URL.")
     else:
-        st.error('Veuillez entrer une URL.')
+        st.error("Please fill out the URL field.")
