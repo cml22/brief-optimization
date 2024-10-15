@@ -3,6 +3,8 @@ from bs4 import BeautifulSoup
 from docx import Document
 import streamlit as st
 import html
+from docx.shared import RGBColor
+from docx.oxml import OxmlElement
 
 # Function to extract content from <h1> to <h6>, <p> tags and <a> links
 def extract_content_from_url(url):
@@ -37,6 +39,35 @@ def extract_content_from_url(url):
 
     return content, h1_text  # Return the H1 text as well
 
+# Function to add a hyperlink to a Word document
+def add_hyperlink(paragraph, url, text):
+    # Create the hyperlink relationship
+    part = paragraph.part
+    r_id = part.relate_to(url, 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink', is_external=True)
+    
+    # Create the hyperlink element
+    hyperlink = OxmlElement('w:hyperlink')
+    hyperlink.set('r:id', r_id)
+    
+    # Create the run element (which contains the actual text)
+    new_run = OxmlElement('w:r')
+    rPr = OxmlElement('w:rPr')
+
+    # Add hyperlink style (blue color + underline)
+    rStyle = OxmlElement('w:rStyle')
+    rStyle.set('w:val', 'Hyperlink')
+    rPr.append(rStyle)
+    new_run.append(rPr)
+
+    # Set the hyperlink text
+    text_run = OxmlElement('w:t')
+    text_run.text = text
+    new_run.append(text_run)
+    
+    # Append the hyperlink to the paragraph
+    hyperlink.append(new_run)
+    paragraph._element.append(hyperlink)
+
 # Function to create a Word document from the extracted content
 def create_word_file(file_name, content, url):
     doc = Document()
@@ -50,9 +81,18 @@ def create_word_file(file_name, content, url):
             level = int(element['level'][1])  # Heading level (h1 = 1, h2 = 2, etc.)
             doc.add_heading(element['text'], level=level)
         elif element['type'] == 'paragraph':
-            # Add paragraph text, replacing the hyperlink as anchor text
-            doc.add_paragraph(element['text'])
-
+            paragraph = doc.add_paragraph()
+            # Split the paragraph into text and hyperlinks
+            words = element['text'].split(' ')
+            for word in words:
+                if word.startswith('http') and '(' in word and ')' in word:
+                    # Extract anchor text and URL from the formatted string 'Text (URL)'
+                    anchor_text = word.split('(')[0].strip()
+                    link = word.split('(')[1].strip(')')
+                    add_hyperlink(paragraph, link, anchor_text)
+                else:
+                    paragraph.add_run(word + ' ')
+    
     # Save the Word file
     doc.save(file_name)
     return file_name
